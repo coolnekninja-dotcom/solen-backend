@@ -5,7 +5,6 @@ const express = require("express");
 const cors = require("cors");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-// Safety check – if key is missing, crash with a clear error
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("❌ STRIPE_SECRET_KEY is not set");
   process.exit(1);
@@ -21,7 +20,7 @@ app.use(
 
 app.use(express.json());
 
-// Map of your Stripe prices
+// Map of your Stripe prices (matches your products)
 const PRICE_MAP = {
   "white-sweatpants": {
     S: "price_1SSTdD6VqDaMUiptLNJ61G1p",
@@ -35,31 +34,35 @@ const PRICE_MAP = {
   },
 };
 
-// Health check
+// health check
 app.get("/", (req, res) => {
   res.send("Solen backend is running ✅");
 });
 
+// Create Stripe checkout session for cart
 app.post("/create-checkout-session", async (req, res) => {
   try {
-    const { product, size, quantity } = req.body;
+    const { items } = req.body;
 
-    if (!PRICE_MAP[product]) {
-      return res.status(400).json({ error: "Invalid product" });
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No items to checkout" });
     }
-    const priceId = PRICE_MAP[product][size];
-    if (!priceId) {
-      return res.status(400).json({ error: "Invalid size" });
-    }
+
+    const line_items = items.map((item) => {
+      const priceId = PRICE_MAP[item.id]?.[item.size];
+      if (!priceId) {
+        throw new Error(`Unknown item: ${item.id} size ${item.size}`);
+      }
+
+      return {
+        price: priceId,
+        quantity: item.quantity || 1,
+      };
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [
-        {
-          price: priceId,
-          quantity: quantity || 1,
-        },
-      ],
+      line_items,
       success_url: `${process.env.FRONTEND_URL}/success`,
       cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     });
