@@ -13,7 +13,6 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 const app = express();
 
-// Allow your frontend to call this backend
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "*",
@@ -41,14 +40,6 @@ app.get("/", (req, res) => {
   res.send("Solen backend is running ✅");
 });
 
-/**
- * Expected body from frontend:
- * {
- *   "product": "white-sweatpants" | "black-sweatpants",
- *   "size": "S" | "M" | "L",
- *   "quantity": 1
- * }
- */
 app.post("/create-checkout-session", async (req, res) => {
   try {
     const { product, size, quantity } = req.body;
@@ -80,7 +71,6 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// IMPORTANT: Render sets process.env.PORT
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
